@@ -91,7 +91,7 @@ export default class App extends React.Component {
       return a.name.localeCompare(b.name);
     });
 
-    const employeesNames = sorted.map(i => i.name);
+    const employeesNames = sorted.map(i => i.name.toLowerCase());
 
     return (
       <div className="container">

@@ -4,26 +4,27 @@ import { useVoiceSearch } from '../hooks/speech';
 
 function Search (props) {
   const generateGrammerCommands = () => {
-    return props.employeesNames.reduce((prev, c) => {
-      const obj = {};
-
-      obj.command = c;
-      obj.callback = () => setVoiceOutput('Listening...');
-
-      return [...prev, obj];
-    }, []);
+    return [
+      { command: 'hello', callback: () => console.log('Just said hello'), matchInterim: true, },
+      { command: '*', callback: (name) => setVoiceOutput(name) },
+      { command: 'clear', callback: () => clearText() },
+    ]
   }
 
   const [employeeName, setEmployeeName] = useState('');
   const [voiceOutput, setVoiceOutput] = useState('');
-  const { SpeechRecognition, transcript, interimTranscript, finalTranscript, resetTranscript, listening, } = useVoiceSearch({ commands: generateGrammerCommands() });
+  const [isListening, setListening] = useState(false);
+  const { SpeechRecognition, interimTranscript, finalTranscript, speechSupported, resetTranscript } = useVoiceSearch({ commands: generateGrammerCommands() });
 
   useEffect(() => {
     if (finalTranscript !== '') {
       console.log('Got final result:', finalTranscript);
-      setVoiceOutput(transcript);
     }
-  }, [interimTranscript, finalTranscript, transcript]);
+
+    if (voiceOutput !== '') {
+      props.onSearch(voiceOutput);
+    }
+  }, [interimTranscript, finalTranscript, voiceOutput]);
 
   const handleChange = (e) => {
     setEmployeeName((prev) => ({
@@ -42,23 +43,50 @@ function Search (props) {
     props.handleExportExcel();
   }
 
-  const handleVoiceRecorder = () => {
-    SpeechRecognition.startListening({
-      continuous: true,
-      language: 'en-GB',
-    });
+  const clearText = () => {
+    resetTranscript();
+    setVoiceOutput('');
   }
 
+  const handleStopRecording = () => {
+    setListening(false);
+    clearText();
+    SpeechRecognition.stopListening();
+  }
+
+  const handleVoiceRecorder = () => {
+    if (isListening) {
+      handleStopRecording();
+    } else {
+      setListening(true);
+      SpeechRecognition.startListening({
+        continuous: true,
+        language: 'en-GB',
+      });
+    }
+  }
+
+  console.log('Voice->>>>', voiceOutput);
+
   return (
-    <div className="d-flex align-items-center justify-content-center mb-4 search-box">
-      <div className="input-group w-50">
-        <span className="input-icon position-absolute" id="basic-addon1"><i className="fas fa-search"></i></span>
-        <input onChange={handleChange} name='employeeName' value={voiceOutput || employeeName} type="text" className="form-control position-relative" placeholder="Search" aria-label="employee-name" aria-describedby="basic-addon1"/>
-        <span onClick={handleVoiceRecorder} className="input-icon position-absolute microphone"><i className="fas fa-microphone"></i></span>
+    <>
+      <div className="d-flex align-items-center justify-content-center mb-4 search-box">
+        <div className="input-group w-50">
+          <span className="input-icon position-absolute" id="basic-addon1"><i className="fas fa-search"></i></span>
+          <input onChange={handleChange} name='employeeName' value={voiceOutput || employeeName} type="text" className="form-control position-relative" placeholder="Search" aria-label="employee-name" aria-describedby="basic-addon1"/>
+          <span onClick={handleVoiceRecorder} className="cursor-pointer input-icon position-absolute microphone">
+            <i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
+          </span>
+        </div>
+        <div onClick={handleCreateUserClick} className="ml-3 cursor-pointer"><i className="fas fa-user-plus"></i></div>
+        <div onClick={handleExportExcelClick} className="ml-3 cursor-pointer"><i className="fas fa-file-excel"></i></div>
       </div>
-      <div onClick={handleCreateUserClick} className="ml-3 cursor-pointer"><i className="fas fa-user-plus"></i></div>
-      <div onClick={handleExportExcelClick} className="ml-3 cursor-pointer"><i className="fas fa-file-excel"></i></div>
-    </div>
+      {isListening && !speechSupported && (
+        <div className="text-danger">
+          Browser is not Support Speech Recognition.
+        </div>
+      )}
+    </>
   );
 }
 
