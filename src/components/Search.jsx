@@ -1,57 +1,65 @@
-import React from 'react';
-import { VoiceSearch } from '../utils/speechrecognition';
+import React, { useEffect, useState } from 'react';
+import { useVoiceSearch } from '../hooks/speech';
+// import { VoiceSearch } from '../utils/speechrecognition';
 
-class Search extends React.Component {
-  constructor (props) {
-    super(props);
+function Search (props) {
+  const generateGrammerCommands = () => {
+    return props.employeesNames.reduce((prev, c) => {
+      const obj = {};
 
-    this.state = {
-      employeeName: '',
-      voiceInput: '',
-    };
+      obj.command = c;
+      obj.callback = () => setVoiceOutput('Listening...');
 
-    this.handleChange = this.handleChange.bind(this);
-    this.handleVoiceRecorder = this.handleVoiceRecorder.bind(this);
+      return [...prev, obj];
+    }, []);
   }
 
-  handleChange (e) {
-    this.setState((prev) => ({
+  const [employeeName, setEmployeeName] = useState('');
+  const [voiceOutput, setVoiceOutput] = useState('');
+  const { SpeechRecognition, transcript, interimTranscript, finalTranscript, resetTranscript, listening, } = useVoiceSearch({ commands: generateGrammerCommands() });
+
+  useEffect(() => {
+    if (finalTranscript !== '') {
+      console.log('Got final result:', finalTranscript);
+      setVoiceOutput(transcript);
+    }
+  }, [interimTranscript, finalTranscript, transcript]);
+
+  const handleChange = (e) => {
+    setEmployeeName((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
 
-    this.props.onSearch(e.target.value);
+    props.onSearch(e.target.value);
   }
 
-  handleCreateUserClick = () => {
-    this.props.handleCreateUser();
+  const handleCreateUserClick = () => {
+    props.handleCreateUser();
   }
 
-  handleExportExcelClick = () => {
-    this.props.handleExportExcel();
+  const handleExportExcelClick = () => {
+    props.handleExportExcel();
   }
 
-  handleVoiceRecorder () {
-    const vs = new VoiceSearch(this.props.employeesNames);
-    vs.start();
-    vs.onComplete((input) => {
-      this.setState({ voiceInput: input });
+  const handleVoiceRecorder = () => {
+    SpeechRecognition.startListening({
+      continuous: true,
+      language: 'en-GB',
     });
   }
 
-  render () {
-    return (
-      <div className="d-flex align-items-center justify-content-center mb-4 search-box">
-        <div className="input-group w-50">
-          <span className="input-icon position-absolute" id="basic-addon1"><i className="fas fa-search"></i></span>
-          <input onChange={this.handleChange} name='employeeName' value={this.state.voiceInput || this.state.employeeName} type="text" className="form-control position-relative" placeholder="Search" aria-label="employee-name" aria-describedby="basic-addon1"/>
-          <span onClick={this.handleVoiceRecorder} className="input-icon position-absolute microphone"><i className="fas fa-microphone"></i></span>
-        </div>
-        <div onClick={this.handleCreateUserClick} className="ml-3 cursor-pointer"><i className="fas fa-user-plus"></i></div>
-        <div onClick={this.handleExportExcelClick} className="ml-3 cursor-pointer"><i className="fas fa-file-excel"></i></div>
+  return (
+    <div className="d-flex align-items-center justify-content-center mb-4 search-box">
+      <div className="input-group w-50">
+        <span className="input-icon position-absolute" id="basic-addon1"><i className="fas fa-search"></i></span>
+        <input onChange={handleChange} name='employeeName' value={voiceOutput || employeeName} type="text" className="form-control position-relative" placeholder="Search" aria-label="employee-name" aria-describedby="basic-addon1"/>
+        <span onClick={handleVoiceRecorder} className="input-icon position-absolute microphone"><i className="fas fa-microphone"></i></span>
       </div>
-    );
-  }
+      <div onClick={handleCreateUserClick} className="ml-3 cursor-pointer"><i className="fas fa-user-plus"></i></div>
+      <div onClick={handleExportExcelClick} className="ml-3 cursor-pointer"><i className="fas fa-file-excel"></i></div>
+    </div>
+  );
 }
 
 export { Search };
